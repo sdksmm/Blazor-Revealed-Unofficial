@@ -1,0 +1,141 @@
+﻿@page "/"
+@using PizzaPlace070.Shared
+@using Microsoft.AspNetCore.Blazor.Services
+@inject IMenuService menuService
+@inject IOrderService  orderService
+@inject State State
+@inject IUriHelper UriHelper
+@using System.Reflection;
+@using System.Collections;
+@using System.Linq;
+
+<!-- Menu -->
+
+
+
+<div class="my-border">
+    <PizzaList Title="Our selected list of pizzas"
+               Menu="@State.Menu"
+               Selected="@((pizza) => AddToBasket(pizza))"
+               ShowPizzaInformation="@((pizza) => ShowPizzaInformation(pizza))" />
+
+    <!-- End menu -->
+</div>
+
+<!-- Shopping Basket -->
+<div class="my-border" style="min-height:75px;">
+  <img src="/images/shoppingcart.png"
+       alt="shopping cart" height="50px" style="float:left;"/>
+
+  <ShoppingBasket Title="ShoppingBasket (your current order)"
+                  Basket="@State.Basket"
+                  GetPizzaFromId="@State.Menu.GetPizza"
+                  Selected="@(pos => RemoveFromBasket(pos))" />
+</div>
+<!-- End shopping basket -->
+
+<div class="my-border">
+    <!-- Customer entry -->
+    <CustomerEntry Title="Please enter your details below"
+                   Customer="@State.Basket.Customer"
+                   Submit="@(async (_) => await PlaceOrder())" />
+    <!-- End customer entry -->
+</div>
+
+<div class="my-border">
+
+    @*@foreach (PropertyInfo propertyInfo in State.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        {
+            if (propertyInfo.Name == "Menu")
+            {
+                @foreach (PropertyInfo subPropertyInfo in propertyInfo.GetType().GetProperties())
+                {
+                    <p style="font-size:12px; line-height:1px;">
+                        <b>@subPropertyInfo.Name</b>
+                        <i>@subPropertyInfo.GetValue(propertyInfo)</i>
+                    </p>
+                }
+            }
+        }*@
+
+    @foreach (PropertyInfo propertyInfo in State.GetType().GetProperties())
+    {
+        if (propertyInfo.Name == "Menu")
+        {
+            var menu = propertyInfo.GetValue(State);
+            Menu menu1 = (Menu)menu;
+            System.Collections.Generic.List<Pizza> pizzas = menu1.Pizzas;
+
+            foreach (var pizza in pizzas)
+            {
+                <p style="font-size:12px; line-height:1px;">
+                    @pizza.Name
+                </p>
+                }
+            }
+
+
+            if (propertyInfo.Name == "TotalPrice")
+            {
+            <p style="font-size:12px; line-height:1px;">
+                <b>@propertyInfo.Name</b>
+                <i>@propertyInfo.GetValue(State)</i>
+            </p>
+        }
+    }
+
+    <p>@State.ToJson()</p>
+</div>
+
+@functions {
+
+    protected override async Task OnInitAsync()
+    {
+        this.State.Menu = await menuService.GetMenu();
+        this.State.Basket.Customer.PropertyChanged +=
+          (sender, e) => this.StateHasChanged();
+    }
+
+    //private State State { get; } = new State();
+    //{
+    //  Menu = new Menu
+    //  {
+    //    Pizzas = new List<Pizza>
+    //{
+    //new Pizza(1, "Pepperoni", 8.99M, Spiciness.Spicy ),
+    //new Pizza(2, "Margarita", 7.99M, Spiciness.None ),
+    //new Pizza(3, "Diabolo", 9.99M, Spiciness.Hot )
+    //}
+    //  }
+    //};
+
+    private string SpicinessImage(Spiciness spiciness)
+    => $"images/{spiciness.ToString().ToLower()}.png";
+
+    private void AddToBasket(Pizza pizza)
+    {
+        Console.WriteLine($"Added pizza {pizza.Name}");
+        State.Basket.Add(pizza.Id);
+        StateHasChanged();
+    }
+
+    private void RemoveFromBasket(int pos)
+    {
+        Console.WriteLine($"Removing pizza at pos {pos}");
+        State.Basket.RemoveAt(pos);
+        StateHasChanged();
+    }
+
+    private async Task PlaceOrder()
+    {
+        //Console.WriteLine("Placing order");
+        await orderService.PlaceOrder(State.Basket);
+    }
+
+    private void ShowPizzaInformation(Pizza pizza)
+    {
+        State.CurrentPizza = pizza;
+        UriHelper.NavigateTo("/PizzaInfo");
+    }
+
+}
